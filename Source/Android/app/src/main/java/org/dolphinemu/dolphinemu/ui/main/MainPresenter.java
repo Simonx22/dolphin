@@ -3,7 +3,6 @@
 package org.dolphinemu.dolphinemu.ui.main;
 
 import android.content.ContentResolver;
-import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 
@@ -93,6 +92,15 @@ public final class MainPresenter
       case R.id.menu_open_file:
         mView.launchOpenFileActivity(REQUEST_GAME_FILE);
         return true;
+
+      case R.id.menu_online_system_update:
+        mView.launchOnlineUpdate();
+        return true;
+
+        case R.id.menu_load_wii_system_menu:
+        mView.launchWiiSystemMenu();
+        return true;
+
 
       case R.id.menu_install_wad:
         new AfterDirectoryInitializationRunner().runWithLifecycle(activity, true,

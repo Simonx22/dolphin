@@ -25,6 +25,10 @@ public interface MainView
 
   void launchOpenFileActivity(int requestCode);
 
+  void launchOnlineUpdate();
+
+  void launchWiiSystemMenu();
+
   /**
    * Shows or hides the loading indicator.
    */

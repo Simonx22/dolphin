@@ -14,6 +14,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.fragment.app.FragmentManager;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import androidx.viewpager.widget.ViewPager;
 
@@ -27,6 +29,10 @@ import org.dolphinemu.dolphinemu.features.settings.model.IntSetting;
 import org.dolphinemu.dolphinemu.features.settings.model.NativeConfig;
 import org.dolphinemu.dolphinemu.features.settings.ui.MenuTag;
 import org.dolphinemu.dolphinemu.features.settings.ui.SettingsActivity;
+import org.dolphinemu.dolphinemu.features.sysupdate.ui.OnlineUpdateProgressBarDialogFragment;
+import org.dolphinemu.dolphinemu.features.sysupdate.ui.OnlineUpdateRegionSelectDialogFragment;
+import org.dolphinemu.dolphinemu.features.sysupdate.ui.SystemMenuNotInstalledDialogFragment;
+import org.dolphinemu.dolphinemu.features.sysupdate.ui.SystemUpdateViewModel;
 import org.dolphinemu.dolphinemu.services.GameFileCacheManager;
 import org.dolphinemu.dolphinemu.ui.platform.Platform;
 import org.dolphinemu.dolphinemu.ui.platform.PlatformGamesView;
@@ -36,6 +42,7 @@ import org.dolphinemu.dolphinemu.utils.DirectoryInitialization;
 import org.dolphinemu.dolphinemu.utils.FileBrowserHelper;
 import org.dolphinemu.dolphinemu.utils.PermissionsHandler;
 import org.dolphinemu.dolphinemu.utils.StartupHandler;
+import org.dolphinemu.dolphinemu.utils.WiiUtils;
 
 /**
  * The main Activity of the Lollipop style UI. Manages several PlatformGamesFragments, which
@@ -142,6 +149,12 @@ public final class MainActivity extends AppCompatActivity
   {
     MenuInflater inflater = getMenuInflater();
     inflater.inflate(R.menu.menu_game_grid, menu);
+
+    if (WiiUtils.isSystemMenuInstalled())
+    {
+      menu.findItem(R.id.menu_load_wii_system_menu).setTitle(getString(R.string.grid_menu_load_wii_system_menu_installed, WiiUtils.getSystemMenuVersion()));
+    }
+
     return true;
   }
 
@@ -182,6 +195,41 @@ public final class MainActivity extends AppCompatActivity
     intent.addCategory(Intent.CATEGORY_OPENABLE);
     intent.setType("*/*");
     startActivityForResult(intent, requestCode);
+  }
+
+  @Override
+  public void launchOnlineUpdate()
+  {
+    if (WiiUtils.isSystemMenuInstalled())
+    {
+      SystemUpdateViewModel viewModel = new ViewModelProvider(this).get(SystemUpdateViewModel.class);
+      viewModel.setRegion(0);
+      OnlineUpdateProgressBarDialogFragment progressBarFragment = new OnlineUpdateProgressBarDialogFragment();
+      progressBarFragment.show(getSupportFragmentManager(), "OnlineUpdateProgressBarDialogFragment");
+      progressBarFragment.setCancelable(false);
+    }
+    else
+      {
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        OnlineUpdateRegionSelectDialogFragment dialogFragment = new OnlineUpdateRegionSelectDialogFragment();
+        dialogFragment.show(fragmentManager, "OnlineUpdateRegionSelectDialogFragment");
+      }
+  }
+
+  @Override
+  public void launchWiiSystemMenu()
+  {
+    WiiUtils.isSystemMenuInstalled();
+
+    if (WiiUtils.isSystemMenuInstalled())
+    {
+      EmulationActivity.launchSystemMenu(this);
+    }
+    else
+    {
+      SystemMenuNotInstalledDialogFragment dialogFragment = new SystemMenuNotInstalledDialogFragment();
+      dialogFragment.show(getSupportFragmentManager(), "SystemMenuNotInstalledDialogFragment");
+    }
   }
 
   /**

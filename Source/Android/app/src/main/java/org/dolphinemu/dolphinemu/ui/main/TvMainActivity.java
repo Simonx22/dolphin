@@ -17,6 +17,7 @@ import androidx.leanback.widget.ArrayObjectAdapter;
 import androidx.leanback.widget.HeaderItem;
 import androidx.leanback.widget.ListRow;
 import androidx.leanback.widget.ListRowPresenter;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import org.dolphinemu.dolphinemu.R;
@@ -25,6 +26,10 @@ import org.dolphinemu.dolphinemu.adapters.GameRowPresenter;
 import org.dolphinemu.dolphinemu.adapters.SettingsRowPresenter;
 import org.dolphinemu.dolphinemu.features.settings.ui.MenuTag;
 import org.dolphinemu.dolphinemu.features.settings.ui.SettingsActivity;
+import org.dolphinemu.dolphinemu.features.sysupdate.ui.OnlineUpdateProgressBarDialogFragment;
+import org.dolphinemu.dolphinemu.features.sysupdate.ui.OnlineUpdateRegionSelectDialogFragment;
+import org.dolphinemu.dolphinemu.features.sysupdate.ui.SystemMenuNotInstalledDialogFragment;
+import org.dolphinemu.dolphinemu.features.sysupdate.ui.SystemUpdateViewModel;
 import org.dolphinemu.dolphinemu.model.GameFile;
 import org.dolphinemu.dolphinemu.model.TvSettingsItem;
 import org.dolphinemu.dolphinemu.services.GameFileCacheManager;
@@ -34,6 +39,7 @@ import org.dolphinemu.dolphinemu.utils.FileBrowserHelper;
 import org.dolphinemu.dolphinemu.utils.PermissionsHandler;
 import org.dolphinemu.dolphinemu.utils.StartupHandler;
 import org.dolphinemu.dolphinemu.utils.TvUtil;
+import org.dolphinemu.dolphinemu.utils.WiiUtils;
 import org.dolphinemu.dolphinemu.viewholders.TvGameViewHolder;
 
 import java.util.ArrayList;
@@ -193,6 +199,41 @@ public final class TvMainActivity extends FragmentActivity
     intent.addCategory(Intent.CATEGORY_OPENABLE);
     intent.setType("*/*");
     startActivityForResult(intent, requestCode);
+  }
+
+  @Override
+  public void launchOnlineUpdate()
+  {
+    if (WiiUtils.isSystemMenuInstalled())
+    {
+      SystemUpdateViewModel viewModel = new ViewModelProvider(this).get(SystemUpdateViewModel.class);
+      viewModel.setRegion(0);
+      OnlineUpdateProgressBarDialogFragment progressBarFragment = new OnlineUpdateProgressBarDialogFragment();
+      progressBarFragment.show(getSupportFragmentManager(), "OnlineUpdateProgressBarDialogFragment");
+      progressBarFragment.setCancelable(false);
+    }
+    else
+      {
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        OnlineUpdateRegionSelectDialogFragment dialogFragment = new OnlineUpdateRegionSelectDialogFragment();
+        dialogFragment.show(fragmentManager, "OnlineUpdateRegionSelectDialogFragment");
+      }
+  }
+
+  @Override
+  public void launchWiiSystemMenu()
+  {
+    WiiUtils.isSystemMenuInstalled();
+
+    if (WiiUtils.isSystemMenuInstalled())
+    {
+      EmulationActivity.launchSystemMenu(this);
+    }
+    else
+    {
+      SystemMenuNotInstalledDialogFragment dialogFragment = new SystemMenuNotInstalledDialogFragment();
+      dialogFragment.show(getSupportFragmentManager(), "SystemMenuNotInstalledDialogFragment");
+    }
   }
 
   /**
@@ -378,6 +419,10 @@ public final class TvMainActivity extends FragmentActivity
             R.drawable.ic_folder,
             R.string.grid_menu_install_wad));
 
+    rowItems.add(new TvSettingsItem(R.id.menu_load_wii_system_menu,
+            R.drawable.ic_folder,
+            R.string.grid_menu_load_wii_system_menu));
+
     rowItems.add(new TvSettingsItem(R.id.menu_import_wii_save,
             R.drawable.ic_folder,
             R.string.grid_menu_import_wii_save));
@@ -385,6 +430,10 @@ public final class TvMainActivity extends FragmentActivity
     rowItems.add(new TvSettingsItem(R.id.menu_import_nand_backup,
             R.drawable.ic_folder,
             R.string.grid_menu_import_nand_backup));
+
+    rowItems.add(new TvSettingsItem(R.id.menu_online_system_update,
+            R.drawable.ic_folder,
+            R.string.grid_menu_online_system_update));
 
     // Create a header for this row.
     HeaderItem header = new HeaderItem(R.string.settings, getString(R.string.settings));

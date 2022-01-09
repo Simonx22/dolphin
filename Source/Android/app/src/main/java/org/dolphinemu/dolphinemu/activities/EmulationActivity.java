@@ -2,6 +2,8 @@
 
 package org.dolphinemu.dolphinemu.activities;
 
+import static java.lang.annotation.RetentionPolicy.SOURCE;
+
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -9,7 +11,6 @@ import android.content.SharedPreferences;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.text.TextUtils;
 import android.util.SparseIntArray;
 import android.view.InputDevice;
 import android.view.KeyEvent;
@@ -58,8 +59,6 @@ import java.io.File;
 import java.lang.annotation.Retention;
 import java.util.List;
 
-import static java.lang.annotation.RetentionPolicy.SOURCE;
-
 public final class EmulationActivity extends AppCompatActivity
 {
   private static final String BACKSTACK_NAME_MENU = "menu";
@@ -80,12 +79,14 @@ public final class EmulationActivity extends AppCompatActivity
   private boolean activityRecreated;
   private String[] mPaths;
   private boolean mRiivolution;
+  private boolean mIsSystemMenu;
   private boolean mIgnoreWarnings;
   private static boolean sUserPausedEmulation;
   private boolean mMenuToastShown;
 
   public static final String EXTRA_SELECTED_GAMES = "SelectedGames";
   public static final String EXTRA_RIIVOLUTION = "Riivolution";
+  public static final String EXTRA_SYSTEM_MENU = "SystemMenu";
   public static final String EXTRA_IGNORE_WARNINGS = "IgnoreWarnings";
   public static final String EXTRA_USER_PAUSED_EMULATION = "sUserPausedEmulation";
   public static final String EXTRA_MENU_TOAST_SHOWN = "MenuToastShown";
@@ -169,6 +170,13 @@ public final class EmulationActivity extends AppCompatActivity
   public static void launch(FragmentActivity activity, String filePath, boolean riivolution)
   {
     launch(activity, new String[]{filePath}, riivolution);
+  }
+
+  public static void launchSystemMenu(FragmentActivity activity)
+  {
+    Intent launcher = new Intent(activity, EmulationActivity.class);
+    launcher.putExtra(EmulationActivity.EXTRA_SYSTEM_MENU, true);
+    activity.startActivity(launcher);
   }
 
   public static void launch(FragmentActivity activity, String[] filePaths, boolean riivolution)
@@ -256,6 +264,7 @@ public final class EmulationActivity extends AppCompatActivity
       Intent gameToEmulate = getIntent();
       mPaths = gameToEmulate.getStringArrayExtra(EXTRA_SELECTED_GAMES);
       mRiivolution = gameToEmulate.getBooleanExtra(EXTRA_RIIVOLUTION, false);
+      mIsSystemMenu = gameToEmulate.getBooleanExtra(EXTRA_SYSTEM_MENU, false);
       mIgnoreWarnings = gameToEmulate.getBooleanExtra(EXTRA_IGNORE_WARNINGS, false);
       sUserPausedEmulation = gameToEmulate.getBooleanExtra(EXTRA_USER_PAUSED_EMULATION, false);
       mMenuToastShown = false;
@@ -289,6 +298,12 @@ public final class EmulationActivity extends AppCompatActivity
     if (mEmulationFragment == null)
     {
       mEmulationFragment = EmulationFragment.newInstance(mPaths, mRiivolution);
+      if (mIsSystemMenu)
+      {
+        Bundle bundle = new Bundle();
+        bundle.putBoolean("systemMenu", true);
+        mEmulationFragment.setArguments(bundle);
+      }
       getSupportFragmentManager().beginTransaction()
               .add(R.id.frame_emulation_fragment, mEmulationFragment)
               .commit();
