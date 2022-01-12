@@ -206,9 +206,16 @@ u32 VideoConfig::GetShaderPrecompilerThreads() const
   if (!backend_info.bSupportsBackgroundCompiling)
     return 0;
 
+  const bool bugDatabaseSupported =
+      backend_info.api_type == APIType::OpenGL || backend_info.api_type == APIType::Vulkan;
+  // DirectX has always worked in our tests in PR#9414
+  const bool multiThreadingWorking =
+      !bugDatabaseSupported ||
+      !DriverDetails::HasBug(DriverDetails::BUG_BROKEN_MULTITHREADED_SHADER_PRECOMPILATION);
+
   if (iShaderPrecompilerThreads >= 0)
     return static_cast<u32>(iShaderPrecompilerThreads);
-  else if (!DriverDetails::HasBug(DriverDetails::BUG_BROKEN_MULTITHREADED_SHADER_PRECOMPILATION))
+  else if (multiThreadingWorking)
     return GetNumAutoShaderPreCompilerThreads();
   else
     return 1;
