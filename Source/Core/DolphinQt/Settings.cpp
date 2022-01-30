@@ -13,6 +13,7 @@
 #include <QRadioButton>
 #include <QSize>
 #include <QWidget>
+#include <QRegularExpression>
 
 #ifdef _WIN32
 #include <memory>
@@ -291,6 +292,20 @@ void Settings::SetAutoRefreshEnabled(bool enabled)
   GetQSettings().setValue(QStringLiteral("gamelist/autorefresh"), enabled);
 
   emit AutoRefreshToggled(enabled);
+}
+
+QString Settings::GetMainWirelessMac() const
+{
+  return QString::fromStdString(Config::Get(Config::MAIN_WIRELESS_MAC));
+}
+
+void Settings::SetMainWirelessMac(const QString& mac)
+{
+  if (GetMainWirelessMac() != mac && mac.size() == 17 && mac.contains(QRegularExpression(QStringLiteral("^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"))))
+  {
+    Config::SetBase(Config::MAIN_WIRELESS_MAC, mac.toStdString());
+    //emit MainWirelessMacChanged(mac);
+  }
 }
 
 QString Settings::GetDefaultGame() const

@@ -76,6 +76,8 @@ public:
   void RemovePath(const QString& path);
   bool GetPreferredView() const;
   void SetPreferredView(bool list);
+  QString GetMainWirelessMac() const;
+  void SetMainWirelessMac(const QString& mac);
   QString GetDefaultGame() const;
   void SetDefaultGame(QString path);
   void RefreshGameList();

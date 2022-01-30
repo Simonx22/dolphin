@@ -9,6 +9,7 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
 #include <QSlider>
@@ -79,6 +80,14 @@ void WiiPane::ConnectLayout()
           &QCheckBox::setChecked);
   connect(&Settings::Instance(), &Settings::USBKeyboardConnectionChanged,
           m_connect_keyboard_checkbox, &QCheckBox::setChecked);
+  // connect(m_wireless_mac_textbox, &QLineEdit::textChanged, this, [this] {
+  //   const auto& text = m_wireless_mac_textbox->text();
+  //   if (text.length() > 17)
+  //     m_wireless_mac_textbox->setText(text.left(17));
+  //     &WiiPane::OnSaveConfig;
+  // });
+  connect(m_wireless_mac_textbox, &QLineEdit::editingFinished,
+          [this] { Settings::Instance().SetMainWirelessMac(m_wireless_mac_textbox->text()); });
 
   // Whitelisted USB Passthrough Devices
   connect(m_whitelist_usb_list, &QListWidget::itemClicked, this, &WiiPane::ValidateSelectionState);
@@ -101,6 +110,9 @@ void WiiPane::ConnectLayout()
 
 void WiiPane::CreateMisc()
 {
+  m_wireless_mac_textbox->setMaxLength(17);
+
+
   auto* misc_settings_group = new QGroupBox(tr("Misc Settings"));
   auto* misc_settings_group_layout = new QGridLayout();
   misc_settings_group->setLayout(misc_settings_group_layout);
@@ -110,6 +122,7 @@ void WiiPane::CreateMisc()
   m_sd_card_checkbox = new QCheckBox(tr("Insert SD Card"));
   m_allow_sd_writes_checkbox = new QCheckBox(tr("Allow Writes to SD Card"));
   m_connect_keyboard_checkbox = new QCheckBox(tr("Connect USB Keyboard"));
+  m_wireless_mac_textbox = new QLineEdit(Settings::Instance().GetMainWirelessMac());
 
   m_aspect_ratio_choice_label = new QLabel(tr("Aspect Ratio:"));
   m_aspect_ratio_choice = new QComboBox();
@@ -154,6 +167,8 @@ void WiiPane::CreateMisc()
   misc_settings_group_layout->addWidget(m_system_language_choice, 4, 1, 1, 1);
   misc_settings_group_layout->addWidget(m_sound_mode_choice_label, 5, 0, 1, 1);
   misc_settings_group_layout->addWidget(m_sound_mode_choice, 5, 1, 1, 1);
+  misc_settings_group_layout->addWidget(new QLabel(tr("MAC Address:")), 6, 0);
+  misc_settings_group_layout->addWidget(m_wireless_mac_textbox, 6, 1);
 }
 
 void WiiPane::CreateWhitelistedUSBPassthroughDevices()
