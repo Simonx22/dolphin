@@ -400,6 +400,9 @@
     <string name="misc_settings">Misc Settings</string>
     <string name="emulate_disc_speed">Emulate Disc Speed</string>
     <string name="emulate_disc_speed_description">Enable emulated disc speed. Disabling this can cause crashes and other problems in some games.</string>
+    <string name="reset_dolphin_settings">Reset Dolphin Settings</string>
+    <string name="reset_all_settings">Reset All Settings</string>
+    <string name="reset_dolphin_settings_confirmation">Are you sure you want to restore all Dolphin settings to their default values? This action cannot be undone!\nAll customizations or changes you have made will be lost.\n\nDo you want to proceed?</string>
 
     <!-- Log Configuration -->
     <string name="log_submenu">Log</string>
