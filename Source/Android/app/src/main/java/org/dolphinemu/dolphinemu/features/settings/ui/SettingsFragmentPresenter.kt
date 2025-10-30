@@ -8,7 +8,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.text.TextUtils
-import androidx.appcompat.app.AppCompatActivity
 import androidx.collection.ArraySet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -357,7 +356,6 @@ class SettingsFragmentPresenter(
             override val isRuntimeEditable: Boolean = true
 
             override fun delete(settings: Settings): Boolean {
-                ThemeHelper.deleteThemeKey((fragmentView.fragmentActivity as AppCompatActivity))
                 return IntSetting.MAIN_INTERFACE_THEME.delete(settings)
             }
 
@@ -366,10 +364,6 @@ class SettingsFragmentPresenter(
 
             override fun setInt(settings: Settings, newValue: Int) {
                 IntSetting.MAIN_INTERFACE_THEME.setInt(settings, newValue)
-                ThemeHelper.saveTheme(
-                    (fragmentView.fragmentActivity as AppCompatActivity),
-                    newValue
-                )
             }
         }
 
@@ -406,7 +400,6 @@ class SettingsFragmentPresenter(
             override val isRuntimeEditable: Boolean = true
 
             override fun delete(settings: Settings): Boolean {
-                ThemeHelper.deleteThemeModeKey((fragmentView.fragmentActivity as AppCompatActivity))
                 return IntSetting.MAIN_INTERFACE_THEME_MODE.delete(settings)
             }
 
@@ -415,10 +408,6 @@ class SettingsFragmentPresenter(
 
             override fun setInt(settings: Settings, newValue: Int) {
                 IntSetting.MAIN_INTERFACE_THEME_MODE.setInt(settings, newValue)
-                ThemeHelper.saveThemeMode(
-                    (fragmentView.fragmentActivity as AppCompatActivity),
-                    newValue
-                )
             }
         }
 
@@ -440,7 +429,6 @@ class SettingsFragmentPresenter(
             override val isRuntimeEditable: Boolean = true
 
             override fun delete(settings: Settings): Boolean {
-                ThemeHelper.deleteBackgroundSetting((fragmentView.fragmentActivity as AppCompatActivity))
                 return BooleanSetting.MAIN_USE_BLACK_BACKGROUNDS.delete(settings)
             }
 
@@ -449,10 +437,6 @@ class SettingsFragmentPresenter(
 
             override fun setBoolean(settings: Settings, newValue: Boolean) {
                 BooleanSetting.MAIN_USE_BLACK_BACKGROUNDS.setBoolean(settings, newValue)
-                ThemeHelper.saveBackgroundSetting(
-                    (fragmentView.fragmentActivity as AppCompatActivity),
-                    newValue
-                )
             }
         }
 

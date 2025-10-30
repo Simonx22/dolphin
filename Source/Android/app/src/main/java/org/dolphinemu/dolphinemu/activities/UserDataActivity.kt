@@ -18,7 +18,6 @@ import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.databinding.ActivityUserDataBinding
-import org.dolphinemu.dolphinemu.dialogs.AnalyticsDialog
 import org.dolphinemu.dolphinemu.dialogs.NotificationDialog
 import org.dolphinemu.dolphinemu.dialogs.TaskDialog
 import org.dolphinemu.dolphinemu.dialogs.UserDataImportWarningDialog
@@ -88,17 +87,6 @@ class UserDataActivity : AppCompatActivity(), ThemeProvider {
 
         setInsets()
         enableScrollTint(this, mBinding.toolbarUserData, mBinding.appbarUserData)
-
-        if (intent.getBooleanExtra(EXTRA_PENDING_ANALYTICS, false)) {
-            intent.putExtra(EXTRA_PENDING_ANALYTICS, false)
-            mBinding.root.post {
-                if (!isFinishing &&
-                    supportFragmentManager.findFragmentByTag(AnalyticsDialog.TAG) == null
-                ) {
-                    AnalyticsDialog().show(supportFragmentManager, AnalyticsDialog.TAG)
-                }
-            }
-        }
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -108,6 +96,7 @@ class UserDataActivity : AppCompatActivity(), ThemeProvider {
 
     override fun onResume() {
         setCorrectTheme(this)
+        AnalyticsPromptCoordinator.maybeShow(this)
         super.onResume()
     }
 
@@ -156,15 +145,7 @@ class UserDataActivity : AppCompatActivity(), ThemeProvider {
     private fun resetSettings() {
         NativeLibrary.ResetDolphinSettings()
         ThemeHelper.resetThemePreferences(this, false)
-
-        val restartIntent = Intent(this, UserDataActivity::class.java)
-        restartIntent.putExtra(EXTRA_PENDING_ANALYTICS, true)
-        restartIntent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
-
-        finish()
-        overridePendingTransition(0, 0)
-        startActivity(restartIntent)
-        overridePendingTransition(0, 0)
+        AnalyticsPromptCoordinator.markPending()
     }
 
     private fun openFileManager() {
@@ -405,6 +386,5 @@ class UserDataActivity : AppCompatActivity(), ThemeProvider {
             context.startActivity(launcher)
         }
 
-        private const val EXTRA_PENDING_ANALYTICS = "UserDataActivity.PendingAnalytics"
     }
 }

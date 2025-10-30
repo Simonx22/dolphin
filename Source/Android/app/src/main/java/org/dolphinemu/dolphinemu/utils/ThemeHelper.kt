@@ -1,5 +1,6 @@
 package org.dolphinemu.dolphinemu.utils
 
+import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
 import org.dolphinemu.dolphinemu.R
 import android.os.Build
@@ -142,6 +143,21 @@ object ThemeHelper {
     }
 
     @JvmStatic
+    fun updateThemePreferences(
+        context: Context,
+        themeValue: Int,
+        themeModeValue: Int,
+        backgroundValue: Boolean
+    ) {
+        PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+            .edit()
+            .putInt(CURRENT_THEME, themeValue)
+            .putInt(CURRENT_THEME_MODE, themeModeValue)
+            .putBoolean(USE_BLACK_BACKGROUNDS, backgroundValue)
+            .apply()
+    }
+
+    @JvmStatic
     fun resetThemePreferences(activity: AppCompatActivity, applyImmediately: Boolean = false) {
         PreferenceManager.getDefaultSharedPreferences(activity.applicationContext)
             .edit()
@@ -164,6 +180,11 @@ object ThemeHelper {
         if (currentTheme != provider.themeId) {
             activity.recreate()
         }
+    }
+
+    @JvmStatic
+    fun applyThemeMode(activity: AppCompatActivity) {
+        setThemeMode(activity)
     }
 
     @JvmStatic
