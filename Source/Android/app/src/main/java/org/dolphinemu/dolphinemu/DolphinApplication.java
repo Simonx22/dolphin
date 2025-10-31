@@ -12,6 +12,7 @@ import org.dolphinemu.dolphinemu.utils.DirectoryInitialization;
 import org.dolphinemu.dolphinemu.utils.GCAdapter;
 import org.dolphinemu.dolphinemu.utils.WiimoteAdapter;
 import org.dolphinemu.dolphinemu.utils.VolleyUtil;
+import org.dolphinemu.dolphinemu.utils.ThemeSettingsWatcher;
 
 public class DolphinApplication extends Application
 {
@@ -27,6 +28,7 @@ public class DolphinApplication extends Application
     registerActivityLifecycleCallbacks(sActivityTracker);
     VolleyUtil.init(getApplicationContext());
     System.loadLibrary("main");
+    ThemeSettingsWatcher.INSTANCE.initialize(this);
 
     GCAdapter.manager = (UsbManager) getSystemService(Context.USB_SERVICE);
     WiimoteAdapter.manager = (UsbManager) getSystemService(Context.USB_SERVICE);

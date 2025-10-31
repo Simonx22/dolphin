@@ -88,60 +88,6 @@ object ThemeHelper {
     }
 
     @JvmStatic
-    fun saveTheme(activity: AppCompatActivity, themeValue: Int) {
-        PreferenceManager.getDefaultSharedPreferences(activity.applicationContext)
-            .edit()
-            .putInt(CURRENT_THEME, themeValue)
-            .apply()
-        activity.recreate()
-    }
-
-    @JvmStatic
-    fun deleteThemeKey(activity: AppCompatActivity) {
-        PreferenceManager.getDefaultSharedPreferences(activity.applicationContext)
-            .edit()
-            .remove(CURRENT_THEME)
-            .apply()
-        activity.recreate()
-    }
-
-    @JvmStatic
-    fun saveThemeMode(activity: AppCompatActivity, themeModeValue: Int) {
-        PreferenceManager.getDefaultSharedPreferences(activity.applicationContext)
-            .edit()
-            .putInt(CURRENT_THEME_MODE, themeModeValue)
-            .apply()
-        setThemeMode(activity)
-    }
-
-    @JvmStatic
-    fun deleteThemeModeKey(activity: AppCompatActivity) {
-        PreferenceManager.getDefaultSharedPreferences(activity.applicationContext)
-            .edit()
-            .remove(CURRENT_THEME_MODE)
-            .apply()
-        setThemeMode(activity)
-    }
-
-    @JvmStatic
-    fun saveBackgroundSetting(activity: AppCompatActivity, backgroundValue: Boolean) {
-        PreferenceManager.getDefaultSharedPreferences(activity.applicationContext)
-            .edit()
-            .putBoolean(USE_BLACK_BACKGROUNDS, backgroundValue)
-            .apply()
-        activity.recreate()
-    }
-
-    @JvmStatic
-    fun deleteBackgroundSetting(activity: AppCompatActivity) {
-        PreferenceManager.getDefaultSharedPreferences(activity.applicationContext)
-            .edit()
-            .remove(USE_BLACK_BACKGROUNDS)
-            .apply()
-        activity.recreate()
-    }
-
-    @JvmStatic
     fun setCorrectTheme(activity: AppCompatActivity) {
         val currentTheme = (activity as ThemeProvider).themeId
         setTheme(activity)

@@ -88,6 +88,7 @@ public final class DirectoryInitialization
     areDirectoriesAvailable = true;
 
     checkThemeSettings(context);
+    ThemeSettingsWatcher.ensureSynced();
 
     directoryState.postValue(DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED);
   }
