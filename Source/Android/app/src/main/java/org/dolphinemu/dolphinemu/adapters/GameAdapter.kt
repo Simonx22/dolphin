@@ -144,7 +144,8 @@ class GameAdapter : RecyclerView.Adapter<GameViewHolder>(),
      */
     override fun onClick(view: View) {
         val holder = view.tag as GameViewHolder
-        val paths = GameFileCacheManager.findSecondDiscAndGetPaths(holder.gameFile)
+        val gameFile = holder.gameFile ?: return
+        val paths = GameFileCacheManager.findSecondDiscAndGetPaths(gameFile)
         EmulationActivity.launch(view.context as FragmentActivity, paths, false)
     }
 
@@ -156,7 +157,8 @@ class GameAdapter : RecyclerView.Adapter<GameViewHolder>(),
      */
     override fun onLongClick(view: View): Boolean {
         val holder = view.tag as GameViewHolder
-        val fragment = GamePropertiesDialog.newInstance(holder.gameFile)
+        val gameFile = holder.gameFile ?: return true
+        val fragment = GamePropertiesDialog.newInstance(gameFile)
         (view.context as FragmentActivity).supportFragmentManager.beginTransaction()
             .add(fragment, GamePropertiesDialog.TAG).commit()
         return true

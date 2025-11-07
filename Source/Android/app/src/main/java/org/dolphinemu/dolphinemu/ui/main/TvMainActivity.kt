@@ -106,9 +106,10 @@ class TvMainActivity : FragmentActivity(), MainView, OnRefreshListener {
                     presenter.handleOptionSelection(item.itemId, this)
                 } else {
                     val holder = itemViewHolder as TvGameViewHolder
+                    val gameFile = holder.gameFile ?: return@OnItemViewClickedListener
 
                     // Start the emulation activity and send the path of the clicked ISO to it.
-                    val paths = GameFileCacheManager.findSecondDiscAndGetPaths(holder.gameFile)
+                    val paths = GameFileCacheManager.findSecondDiscAndGetPaths(gameFile)
                     EmulationActivity.launch(this@TvMainActivity, paths, false)
                 }
             }
