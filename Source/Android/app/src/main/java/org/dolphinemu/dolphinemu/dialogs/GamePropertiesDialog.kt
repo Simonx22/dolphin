@@ -29,8 +29,8 @@ class GamePropertiesDialog : DialogFragment() {
     val args = requireArguments()
 
     val path = requireNotNull(args.getString(ARG_PATH))
-    val gameId = requireNotNull(args.getString(ARG_GAME_ID))
-    val gameTdbId = requireNotNull(args.getString(ARG_GAMETDB_ID))
+        val gameId = requireNotNull(args.getString(ARG_GAME_ID))
+        val gameTdbId: String? = args.getString(ARG_GAMETDB_ID)
     val revision = args.getInt(ARG_REVISION)
     val discNumber = args.getInt(ARG_DISC_NUMBER)
     val platform = args.getInt(ARG_PLATFORM)
@@ -49,17 +49,20 @@ class GamePropertiesDialog : DialogFragment() {
     }
 
     if (isDisc) {
-      itemsBuilder.add(R.string.properties_start_with_riivolution) { _, _ ->
-        RiivolutionBootActivity.launch(requireContext(), path, gameId, revision, discNumber)
-      }
+            itemsBuilder.add(R.string.properties_start_with_riivolution) { _, _ ->
+                RiivolutionBootActivity.launch(requireContext(), path, gameId, revision, discNumber)
+            }
 
-      itemsBuilder.add(R.string.properties_set_default_iso) { _, _ ->
-        Settings().use { settings ->
-          settings.loadSettings()
-          StringSetting.MAIN_DEFAULT_ISO.setString(settings, path)
-          settings.saveSettings()
-        }
-      }
+            itemsBuilder.add(R.string.properties_set_default_iso) { _, _ ->
+                val settings = Settings()
+                try {
+                    settings.loadSettings()
+                    StringSetting.MAIN_DEFAULT_ISO.setString(settings, path)
+                    settings.saveSettings()
+                } finally {
+                    settings.close()
+                }
+            }
     }
 
     if (shouldAllowConversion) {
@@ -78,9 +81,9 @@ class GamePropertiesDialog : DialogFragment() {
       SettingsActivity.launch(requireContext(), MenuTag.SETTINGS, gameId, revision, isWii)
     }
 
-    itemsBuilder.add(R.string.properties_edit_cheats) { _, _ ->
-      CheatsActivity.launch(requireContext(), gameId, gameTdbId, revision, isWii)
-    }
+            itemsBuilder.add(R.string.properties_edit_cheats) { _, _ ->
+                CheatsActivity.launch(requireContext(), gameId, gameTdbId, revision, isWii)
+            }
 
     itemsBuilder.add(R.string.properties_clear_game_settings) { _, _ ->
       clearGameSettingsWithConfirmation(gameId)
@@ -140,18 +143,16 @@ class GamePropertiesDialog : DialogFragment() {
     if (file.isDirectory) {
       val files = file.listFiles() ?: return false
 
-      for (child in files) {
-        if (child.name.startsWith(gameId) && child.isFile) {
-          if (!child.delete()) {
-            Log.error("[GamePropertiesDialog] Failed to delete ${child.absolutePath}")
-          }
-          hadGameProfiles = true
+            for (child in files) {
+                if (child.name.startsWith(gameId) && child.isFile) {
+                    if (!child.delete()) {
+                        Log.error("[GamePropertiesDialog] Failed to delete ${child.absolutePath}")
+                    }
+                    hadGameProfiles = true
+                }
+                hadGameProfiles = recursivelyDeleteGameProfiles(child, gameId) || hadGameProfiles
+            }
         }
-        if (recursivelyDeleteGameProfiles(child, gameId)) {
-          hadGameProfiles = true
-        }
-      }
-    }
 
     return hadGameProfiles
   }

@@ -56,7 +56,7 @@ class GameRowPresenter : Presenter() {
             cardParent.infoAreaBackground = background
             cardParent.setOnLongClickListener { view: View ->
                 val gameFile = holder.gameFile ?: return@setOnLongClickListener true
-                val activity = view.context as FragmentActivity
+                val activity = view.context as? FragmentActivity ?: return@setOnLongClickListener true
                 val fragment = GamePropertiesDialog.newInstance(gameFile)
                 activity.supportFragmentManager.beginTransaction()
                     .add(fragment, GamePropertiesDialog.TAG).commit()

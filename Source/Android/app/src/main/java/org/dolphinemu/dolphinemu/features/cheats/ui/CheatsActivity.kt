@@ -260,7 +260,7 @@ class CheatsActivity : AppCompatActivity(), PanelSlideListener {
         fun launch(
             context: Context,
             gameId: String,
-            gameTdbId: String,
+            gameTdbId: String?,
             revision: Int,
             isWii: Boolean
         ) {
