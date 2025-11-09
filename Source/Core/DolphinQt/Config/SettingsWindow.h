@@ -32,6 +32,7 @@ protected:
 
 private:
   void UpdateNavigationListStyle();
+  void AdjustNavigationListWidth();
 
   QStackedWidget* m_stacked_panes = nullptr;
   QListWidget* m_navigation_list = nullptr;

@@ -9,6 +9,7 @@
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QListWidget>
+#include <QScrollBar>
 #include <QPalette>
 #include <QStackedWidget>
 #include <QTabWidget>
@@ -165,6 +166,25 @@ void StackedSettingsWindow::UpdateNavigationListStyle()
   }
 
   m_navigation_list->setPalette(list_palette);
+  AdjustNavigationListWidth();
+}
+
+void StackedSettingsWindow::AdjustNavigationListWidth()
+{
+  if (!m_navigation_list || m_navigation_list->count() == 0)
+    return;
+
+  const int column_width = m_navigation_list->sizeHintForColumn(0);
+  if (column_width <= 0)
+    return;
+
+  const int frame_width = m_navigation_list->frameWidth();
+  const int scrollbar_width = m_navigation_list->verticalScrollBar()->sizeHint().width();
+  const int padding = m_list_item_padding * 2;
+  constexpr int extra_space = 8;
+
+  const int width = column_width + frame_width * 2 + scrollbar_width + padding + extra_space;
+  m_navigation_list->setFixedWidth(width);
 }
 
 void StackedSettingsWindow::AddPane(QWidget* widget, const QString& name)
@@ -172,6 +192,7 @@ void StackedSettingsWindow::AddPane(QWidget* widget, const QString& name)
   m_stacked_panes->addWidget(widget);
   // Pad the left and right of each item.
   m_navigation_list->addItem(QStringLiteral("  %1  ").arg(name));
+  AdjustNavigationListWidth();
 }
 
 void StackedSettingsWindow::AddWrappedPane(QWidget* widget, const QString& name)
