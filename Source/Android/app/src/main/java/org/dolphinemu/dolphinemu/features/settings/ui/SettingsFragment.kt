@@ -116,6 +116,10 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
         adapter!!.setSettings(settingsList)
     }
 
+    fun onSearchQuery(query: String?) {
+        presenter.onSearchQuery(query)
+    }
+
     override fun loadSubMenu(menuKey: MenuTag) {
         if (menuKey == MenuTag.GPU_DRIVERS) {
             showGpuDriverDialog()

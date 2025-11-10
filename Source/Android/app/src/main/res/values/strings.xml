@@ -30,6 +30,7 @@
     <string name="wiimote_motion_simulation">Motion Simulation</string>
     <string name="wiimote_motion_input">Motion Input</string>
     <string name="wiimote_extensions">Extension</string>
+    <string name="search_settings">Search settings</string>
 
     <string name="input_device">Device</string>
     <string name="input_device_all_devices">Create Mappings for Other Devices</string>

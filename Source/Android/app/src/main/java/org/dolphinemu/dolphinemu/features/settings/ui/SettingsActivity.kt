@@ -13,12 +13,14 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.Menu
+import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.DialogFragment
@@ -93,8 +95,35 @@ class SettingsActivity : AppCompatActivity(), SettingsActivityView, ThemeProvide
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        val inflater = menuInflater
-        inflater.inflate(R.menu.menu_settings, menu)
+        menuInflater.inflate(R.menu.menu_settings, menu)
+        val searchItem = menu.findItem(R.id.action_search_settings)
+        val searchView = searchItem?.actionView as? SearchView
+        searchView?.apply {
+            queryHint = getString(R.string.search_settings)
+            maxWidth = Integer.MAX_VALUE
+            setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+                override fun onQueryTextSubmit(query: String?): Boolean {
+                    fragment?.onSearchQuery(query)
+                    clearFocus()
+                    return true
+                }
+
+                override fun onQueryTextChange(newText: String?): Boolean {
+                    fragment?.onSearchQuery(newText)
+                    return true
+                }
+            })
+        }
+        searchItem?.setOnActionExpandListener(object : MenuItem.OnActionExpandListener {
+            override fun onMenuItemActionExpand(item: MenuItem): Boolean {
+                return true
+            }
+
+            override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
+                fragment?.onSearchQuery(null)
+                return true
+            }
+        })
         return true
     }
 

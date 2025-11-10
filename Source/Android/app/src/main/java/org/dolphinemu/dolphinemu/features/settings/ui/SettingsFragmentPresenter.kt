@@ -52,6 +52,11 @@ class SettingsFragmentPresenter(
     private var serialPort1Type = 0
     private var controllerNumber = 0
     private var controllerType = 0
+    private val searchableMenuTags =
+        MenuTag.values().filter { it != MenuTag.GPU_DRIVERS && it != MenuTag.WIIMOTE_EXTENSION }
+    private val searchMenuCache = EnumMap<MenuTag, ArrayList<SettingsItem>>(MenuTag::class.java)
+    private var filteredSettingsList: ArrayList<SettingsItem>? = null
+    private var searchQuery: String? = null
 
     var gpuDriver: GpuDriverMetadata? = null
     private val libNameSetting: StringSetting = StringSetting.GFX_DRIVER_LIB_NAME
@@ -92,17 +97,37 @@ class SettingsFragmentPresenter(
     var settings: Settings? = null
         set(settings) {
             field = settings
+            searchMenuCache.clear()
+            filteredSettingsList = null
+            searchQuery = null
             if (settingsList == null && settings != null) {
                 loadSettingsList()
-            } else {
-                fragmentView.showSettingsList(settingsList!!)
+            } else if (settingsList != null) {
+                showCurrentList()
                 fragmentView.setOldControllerSettingsWarningVisibility(hasOldControllerSettings)
             }
         }
 
     private fun loadSettingsList() {
+        settingsList = buildSettingsList(menuTag)
+        showCurrentList()
+    }
+
+    private fun showCurrentList() {
+        val listToShow = filteredSettingsList ?: settingsList
+        if (listToShow != null) {
+            fragmentView.showSettingsList(listToShow)
+        }
+    }
+
+    private fun buildSettingsList(
+        menuKey: MenuTag,
+        controllerNumber: Int = this.controllerNumber,
+        controllerType: Int = this.controllerType,
+        serialPortType: Int = this.serialPort1Type
+    ): ArrayList<SettingsItem> {
         val sl = ArrayList<SettingsItem>()
-        when (menuTag) {
+        when (menuKey) {
             MenuTag.SETTINGS -> addTopLevelSettings(sl)
             MenuTag.CONFIG -> addConfigSettings(sl)
             MenuTag.CONFIG_GENERAL -> addGeneralSettings(sl)
@@ -113,9 +138,9 @@ class SettingsFragmentPresenter(
             MenuTag.CONFIG_WII -> addWiiSettings(sl)
             MenuTag.CONFIG_ADVANCED -> addAdvancedSettings(sl)
             MenuTag.GRAPHICS -> addGraphicsSettings(sl)
-            MenuTag.CONFIG_SERIALPORT1 -> addSerialPortSubSettings(sl, serialPort1Type)
+            MenuTag.CONFIG_SERIALPORT1 -> addSerialPortSubSettings(sl, serialPortType)
             MenuTag.GCPAD_TYPE -> addGcPadSettings(sl)
-            MenuTag.WIIMOTE -> addWiimoteSettings(sl)
+            MenuTag.WIIMOTE -> if (settings!!.isWii) addWiimoteSettings(sl)
             MenuTag.ENHANCEMENTS -> addEnhanceSettings(sl)
             MenuTag.COLOR_CORRECTION -> addColorCorrectionSettings(sl)
             MenuTag.STEREOSCOPY -> addStereoSettings(sl)
@@ -174,11 +199,158 @@ class SettingsFragmentPresenter(
                 controllerNumber
             )
 
+            MenuTag.WIIMOTE_EXTENSION,
+            MenuTag.GPU_DRIVERS -> Unit
+
             else -> throw UnsupportedOperationException("Unimplemented menu")
         }
 
-        settingsList = sl
-        fragmentView.showSettingsList(settingsList!!)
+        return sl
+    }
+
+    fun onSearchQuery(query: String?) {
+        if (settingsList == null || settings == null || !settings!!.areSettingsLoaded()) {
+            return
+        }
+
+        val trimmed = query?.trim()
+        if (trimmed.isNullOrEmpty()) {
+            searchQuery = null
+            filteredSettingsList = null
+            showCurrentList()
+            return
+        }
+
+        searchQuery = trimmed
+        val normalizedQuery = trimmed.lowercase(Locale.getDefault())
+        val results = ArrayList<SettingsItem>()
+        for (menuTag in searchableMenuTags) {
+            val menuItems = getMenuItemsForSearch(menuTag)
+            for (item in menuItems) {
+                if (matchesSearchQuery(item, normalizedQuery)) {
+                    results.add(item)
+                }
+            }
+        }
+
+        filteredSettingsList = results
+        fragmentView.showSettingsList(filteredSettingsList!!)
+    }
+
+    private fun getMenuItemsForSearch(menuTag: MenuTag): List<SettingsItem> {
+        return searchMenuCache[menuTag] ?: buildSearchableList(menuTag).also {
+            searchMenuCache[menuTag] = it
+        }
+    }
+
+    private fun buildSearchableList(menuTag: MenuTag): ArrayList<SettingsItem> {
+        if (settings == null || !settings!!.areSettingsLoaded()) {
+            return ArrayList()
+        }
+
+        return when (menuTag) {
+            MenuTag.CONFIG_SERIALPORT1 -> {
+                val serialType = IntSetting.MAIN_SERIAL_PORT_1.int
+                if (serialType != 0 && serialType != 255) {
+                    buildSettingsList(menuTag, serialPortType = serialType)
+                } else {
+                    ArrayList()
+                }
+            }
+            MenuTag.GCPAD_1 -> buildGcPadMenu(menuTag, 0)
+            MenuTag.GCPAD_2 -> buildGcPadMenu(menuTag, 1)
+            MenuTag.GCPAD_3 -> buildGcPadMenu(menuTag, 2)
+            MenuTag.GCPAD_4 -> buildGcPadMenu(menuTag, 3)
+            MenuTag.WIIMOTE -> if (settings!!.isWii) buildSettingsList(menuTag) else ArrayList()
+            MenuTag.WIIMOTE_1 -> buildWiimoteMenu(menuTag, 0)
+            MenuTag.WIIMOTE_2 -> buildWiimoteMenu(menuTag, 1)
+            MenuTag.WIIMOTE_3 -> buildWiimoteMenu(menuTag, 2)
+            MenuTag.WIIMOTE_4 -> buildWiimoteMenu(menuTag, 3)
+            MenuTag.WIIMOTE_EXTENSION_1 -> buildWiimoteExtensionMenu(menuTag, 0)
+            MenuTag.WIIMOTE_EXTENSION_2 -> buildWiimoteExtensionMenu(menuTag, 1)
+            MenuTag.WIIMOTE_EXTENSION_3 -> buildWiimoteExtensionMenu(menuTag, 2)
+            MenuTag.WIIMOTE_EXTENSION_4 -> buildWiimoteExtensionMenu(menuTag, 3)
+            MenuTag.WIIMOTE_GENERAL_1 -> buildWiimoteSubMenu(menuTag, 0)
+            MenuTag.WIIMOTE_GENERAL_2 -> buildWiimoteSubMenu(menuTag, 1)
+            MenuTag.WIIMOTE_GENERAL_3 -> buildWiimoteSubMenu(menuTag, 2)
+            MenuTag.WIIMOTE_GENERAL_4 -> buildWiimoteSubMenu(menuTag, 3)
+            MenuTag.WIIMOTE_MOTION_SIMULATION_1 -> buildWiimoteSubMenu(menuTag, 0)
+            MenuTag.WIIMOTE_MOTION_SIMULATION_2 -> buildWiimoteSubMenu(menuTag, 1)
+            MenuTag.WIIMOTE_MOTION_SIMULATION_3 -> buildWiimoteSubMenu(menuTag, 2)
+            MenuTag.WIIMOTE_MOTION_SIMULATION_4 -> buildWiimoteSubMenu(menuTag, 3)
+            MenuTag.WIIMOTE_MOTION_INPUT_1 -> buildWiimoteSubMenu(menuTag, 0)
+            MenuTag.WIIMOTE_MOTION_INPUT_2 -> buildWiimoteSubMenu(menuTag, 1)
+            MenuTag.WIIMOTE_MOTION_INPUT_3 -> buildWiimoteSubMenu(menuTag, 2)
+            MenuTag.WIIMOTE_MOTION_INPUT_4 -> buildWiimoteSubMenu(menuTag, 3)
+            MenuTag.WIIMOTE_EXTENSION,
+            MenuTag.GPU_DRIVERS -> ArrayList()
+            else -> buildSettingsList(menuTag)
+        }
+    }
+
+    private fun buildGcPadMenu(menuTag: MenuTag, index: Int): ArrayList<SettingsItem> {
+        val padType = getGcPadType(index)
+        return if (padType != 0) {
+            buildSettingsList(menuTag, controllerNumber = index, controllerType = padType)
+        } else {
+            ArrayList()
+        }
+    }
+
+    private fun buildWiimoteMenu(menuTag: MenuTag, index: Int): ArrayList<SettingsItem> {
+        return if (isWiimoteEnabled(index)) {
+            buildSettingsList(menuTag, controllerNumber = index)
+        } else {
+            ArrayList()
+        }
+    }
+
+    private fun buildWiimoteExtensionMenu(menuTag: MenuTag, index: Int): ArrayList<SettingsItem> {
+        if (!isWiimoteEnabled(index)) {
+            return ArrayList()
+        }
+        val extensionType = EmulatedController.getSelectedWiimoteAttachment(index)
+        return if (extensionType == 0) {
+            ArrayList()
+        } else {
+            buildSettingsList(menuTag, controllerNumber = index, controllerType = extensionType)
+        }
+    }
+
+    private fun buildWiimoteSubMenu(menuTag: MenuTag, index: Int): ArrayList<SettingsItem> {
+        return if (isWiimoteEnabled(index)) {
+            buildSettingsList(menuTag, controllerNumber = index)
+        } else {
+            ArrayList()
+        }
+    }
+
+    private fun getGcPadType(index: Int) = when (index) {
+        0 -> IntSetting.MAIN_SI_DEVICE_0.int
+        1 -> IntSetting.MAIN_SI_DEVICE_1.int
+        2 -> IntSetting.MAIN_SI_DEVICE_2.int
+        3 -> IntSetting.MAIN_SI_DEVICE_3.int
+        else -> 0
+    }
+
+    private fun getWiimoteSource(index: Int) = when (index) {
+        0 -> IntSetting.WIIMOTE_1_SOURCE.int
+        1 -> IntSetting.WIIMOTE_2_SOURCE.int
+        2 -> IntSetting.WIIMOTE_3_SOURCE.int
+        3 -> IntSetting.WIIMOTE_4_SOURCE.int
+        else -> 0
+    }
+
+    private fun isWiimoteEnabled(index: Int) =
+        settings!!.isWii && getWiimoteSource(index) == 1
+
+    private fun matchesSearchQuery(item: SettingsItem, normalizedQuery: String): Boolean {
+        val name = item.name.toString().lowercase(Locale.getDefault())
+        if (name.contains(normalizedQuery)) {
+            return true
+        }
+        val description = item.description.toString().lowercase(Locale.getDefault())
+        return description.contains(normalizedQuery)
     }
 
     private fun addTopLevelSettings(sl: ArrayList<SettingsItem>) {
@@ -2226,7 +2398,7 @@ class SettingsFragmentPresenter(
                     addControllerPerGameSettings(sl, gcPad, gcPadNumber)
                 } else {
                     addControllerMetaSettings(sl, gcPad)
-                    addControllerMappingSettings(sl, gcPad, null)
+                    addControllerMappingSettings(sl, gcPad, null, gcPadNumber)
                 }
             }
             7 -> {
@@ -2238,7 +2410,7 @@ class SettingsFragmentPresenter(
                 } else {
                     sl.add(HeaderSetting(context, R.string.keyboard_controller_warning, 0))
                     addControllerMetaSettings(sl, gcKeyboard)
-                    addControllerMappingSettings(sl, gcKeyboard, null)
+                    addControllerMappingSettings(sl, gcKeyboard, null, gcPadNumber)
                 }
             }
             12 -> {
@@ -2299,7 +2471,8 @@ class SettingsFragmentPresenter(
             addControllerMappingSettings(
                 sl,
                 wiimote,
-                ArraySet(listOf(ControlGroup.TYPE_ATTACHMENTS, ControlGroup.TYPE_OTHER))
+                ArraySet(listOf(ControlGroup.TYPE_ATTACHMENTS, ControlGroup.TYPE_OTHER)),
+                wiimoteNumber
             )
         }
     }
@@ -2313,6 +2486,7 @@ class SettingsFragmentPresenter(
             sl,
             EmulatedController.getWiimote(wiimoteNumber),
             EmulatedController.getWiimoteAttachment(wiimoteNumber, extensionType),
+            wiimoteNumber,
             null
         )
     }
@@ -2321,7 +2495,8 @@ class SettingsFragmentPresenter(
         addControllerMappingSettings(
             sl,
             EmulatedController.getWiimote(wiimoteNumber),
-            setOf(ControlGroup.TYPE_BUTTONS)
+            setOf(ControlGroup.TYPE_BUTTONS),
+            wiimoteNumber
         )
     }
 
@@ -2338,7 +2513,8 @@ class SettingsFragmentPresenter(
                     ControlGroup.TYPE_CURSOR,
                     ControlGroup.TYPE_SHAKE
                 )
-            )
+            ),
+            wiimoteNumber
         )
     }
 
@@ -2351,7 +2527,8 @@ class SettingsFragmentPresenter(
                     ControlGroup.TYPE_IMU_GYROSCOPE,
                     ControlGroup.TYPE_IMU_CURSOR
                 )
-            )
+            ),
+            wiimoteNumber
         )
     }
 
@@ -2461,9 +2638,10 @@ class SettingsFragmentPresenter(
     private fun addControllerMappingSettings(
       sl: ArrayList<SettingsItem>,
       controller: EmulatedController,
-      groupTypeFilter: Set<Int>?
+      groupTypeFilter: Set<Int>?,
+      controllerNumber: Int
     ) {
-      addContainerMappingSettings(sl, controller, controller, groupTypeFilter)
+      addContainerMappingSettings(sl, controller, controller, controllerNumber, groupTypeFilter)
     }
 
     /**
@@ -2478,6 +2656,7 @@ class SettingsFragmentPresenter(
         sl: ArrayList<SettingsItem>,
         controller: EmulatedController,
         container: ControlGroupContainer,
+        controllerNumber: Int,
         groupTypeFilter: Set<Int>?
     ) {
         updateOldControllerSettingsWarningVisibility(controller)
