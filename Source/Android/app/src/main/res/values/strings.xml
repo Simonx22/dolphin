@@ -916,6 +916,10 @@ It can efficiently compress both junk data and encrypted Wii data.
     <string name="gpu_driver_install_unsupported_android_version">Your device doesn\'t meet the minimum Android version requirements for the supplied driver.</string>
     <string name="gpu_driver_install_already_installed">The supplied driver package is already installed.</string>
     <string name="gpu_driver_install_file_not_found">The selected file could not be found or accessed.</string>
+    <string name="custom_driver_debug_unknown_driver">Unknown driver</string>
+    <string name="custom_driver_debug_in_use">Custom driver in use: %1$s</string>
+    <string name="custom_driver_debug_not_in_use">Custom drivers not in use (%1$s)</string>
+    <string name="custom_driver_debug_not_supported">Custom drivers are not supported on this device.</string>
 
     <!-- Emulated USB Devices -->
     <string name="emulated_usb_devices">Emulated USB Devices</string>

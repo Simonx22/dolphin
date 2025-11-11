@@ -29,9 +29,11 @@ import org.dolphinemu.dolphinemu.fragments.GridOptionDialogFragment
 import org.dolphinemu.dolphinemu.services.GameFileCacheManager
 import org.dolphinemu.dolphinemu.ui.platform.PlatformGamesView
 import org.dolphinemu.dolphinemu.ui.platform.PlatformTab
+import org.dolphinemu.dolphinemu.model.GpuDriverMetadata
 import org.dolphinemu.dolphinemu.utils.AfterDirectoryInitializationRunner
 import org.dolphinemu.dolphinemu.utils.DirectoryInitialization
 import org.dolphinemu.dolphinemu.utils.FileBrowserHelper
+import org.dolphinemu.dolphinemu.utils.GpuDriverHelper
 import org.dolphinemu.dolphinemu.utils.InsetsHelper
 import org.dolphinemu.dolphinemu.utils.PermissionsHandler
 import org.dolphinemu.dolphinemu.utils.StartupHandler
@@ -98,6 +100,8 @@ class MainActivity : AppCompatActivity(), MainView, OnRefreshListener, ThemeProv
             AfterDirectoryInitializationRunner()
                 .runWithLifecycle(this) { setPlatformTabsAndStartGameFileCacheService() }
         }
+
+        updateCustomDriverStatus()
 
         presenter.onResume()
     }
@@ -298,6 +302,43 @@ class MainActivity : AppCompatActivity(), MainView, OnRefreshListener, ThemeProv
 
         showGames()
         GameFileCacheManager.startLoad()
+    }
+
+    private fun updateCustomDriverStatus() {
+        AfterDirectoryInitializationRunner().runWithLifecycle(this) {
+            binding.textCustomDriverStatus.text = buildCustomDriverStatusText()
+        }
+    }
+
+    private fun buildCustomDriverStatusText(): String {
+        if (!GpuDriverHelper.supportsCustomDriverLoading()) {
+            return getString(R.string.custom_driver_debug_not_supported)
+        }
+
+        val installedDriver = GpuDriverHelper.getInstalledDriverMetadata()
+        return if (installedDriver != null) {
+            getString(R.string.custom_driver_debug_in_use, formatDriverLabel(installedDriver))
+        } else {
+            val systemDriver = GpuDriverHelper.getSystemDriverMetadata(applicationContext)
+            getString(R.string.custom_driver_debug_not_in_use, formatDriverLabel(systemDriver))
+        }
+    }
+
+    private fun formatDriverLabel(driver: GpuDriverMetadata?): String {
+        if (driver == null) {
+            return getString(R.string.custom_driver_debug_unknown_driver)
+        }
+
+        val parts = mutableListOf<String>()
+        driver.name.takeIf { it.isNotBlank() }?.let { parts.add(it) }
+        driver.driverVersion.takeIf { it.isNotBlank() }?.let { parts.add("v$it") }
+        driver.vendor.takeIf { it.isNotBlank() }?.let { parts.add(it) }
+
+        if (parts.isEmpty()) {
+            return getString(R.string.custom_driver_debug_unknown_driver)
+        }
+
+        return parts.joinToString(" · ")
     }
 
     override fun setTheme(themeId: Int) {
