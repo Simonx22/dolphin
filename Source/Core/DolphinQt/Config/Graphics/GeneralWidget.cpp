@@ -13,6 +13,7 @@
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 
+#include "Common/Config/Config.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/ConfigManager.h"
@@ -171,10 +172,50 @@ void GeneralWidget::ToggleCustomAspectRatio(int index)
 
 void GeneralWidget::BackendWarning()
 {
+  const auto& available_backends = VideoBackendBase::GetAvailableBackends();
+  const int backend_index = m_backend_combo->currentIndex();
+
+  if (available_backends.empty())
+  {
+    m_previous_backend = -1;
+    return;
+  }
+
+  if (m_backend_combo->count() == 0)
+  {
+    m_previous_backend = -1;
+    return;
+  }
+
+  if (backend_index < 0 || backend_index >= static_cast<int>(available_backends.size()))
+  {
+    // The stored backend is no longer available. Reset to the first available backend so the UI
+    // stays in sync and avoid out-of-range accesses.
+    const int fallback_index = 0;
+    const QSignalBlocker blocker(m_backend_combo);
+    m_backend_combo->setCurrentIndex(fallback_index);
+
+    const std::string backend_name =
+        m_backend_combo->currentData().toString().toStdString();
+
+    if (m_game_layer != nullptr)
+    {
+      m_game_layer->Set(Config::MAIN_GFX_BACKEND.GetLocation(), backend_name);
+      Config::OnConfigChanged();
+    }
+    else
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_GFX_BACKEND, backend_name);
+    }
+
+    m_previous_backend = fallback_index;
+    emit BackendChanged(QString::fromStdString(backend_name));
+    return;
+  }
+
   if (Config::GetActiveLayerForConfig(Config::MAIN_GFX_BACKEND) == Config::LayerType::Base)
   {
-    auto warningMessage = VideoBackendBase::GetAvailableBackends()[m_backend_combo->currentIndex()]
-                              ->GetWarningMessage();
+    auto warningMessage = available_backends[backend_index]->GetWarningMessage();
     if (warningMessage)
     {
       ModalMessageBox confirm_sw(this);
@@ -192,7 +233,7 @@ void GeneralWidget::BackendWarning()
     }
   }
 
-  m_previous_backend = m_backend_combo->currentIndex();
+  m_previous_backend = backend_index;
   emit BackendChanged(m_backend_combo->currentData().toString());
 }
 

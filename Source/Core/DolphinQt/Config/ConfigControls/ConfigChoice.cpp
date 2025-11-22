@@ -80,9 +80,17 @@ void ConfigStringChoice::Update(int index)
 void ConfigStringChoice::Load()
 {
   const QString setting_value = QString::fromStdString(ReadValue(m_setting));
-  const int index = m_text_is_data ? findText(setting_value) : findData(setting_value);
+  int index = m_text_is_data ? findText(setting_value) : findData(setting_value);
+
+  if (index < 0 && count() > 0)
+  {
+    index = 0;
+    const QString fallback_value = m_text_is_data ? itemText(index) : itemData(index).toString();
+    SaveValue(m_setting, fallback_value.toStdString());
+  }
 
   // This can be called publicly.
+  const QSignalBlocker blocker(this);
   setCurrentIndex(index);
 }
 
