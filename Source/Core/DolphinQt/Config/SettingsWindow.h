@@ -3,10 +3,17 @@
 
 #pragma once
 
+#include <QPointer>
+#include <vector>
+
 #include <QDialog>
 
 class QStackedWidget;
 class QListWidget;
+class QLineEdit;
+class QLabel;
+class QToolButton;
+class QWidget;
 class MainWindow;
 class QEvent;
 
@@ -29,12 +36,37 @@ protected:
   void OnDoneCreatingPanes();
 
   void changeEvent(QEvent* event) override;
+  bool eventFilter(QObject* watched, QEvent* event) override;
+  void done(int result) override;
 
 private:
+  struct SearchResult
+  {
+    int pane_index;
+    QPointer<QWidget> widget;
+  };
+
+  void ApplySearchFilter();
+  void UpdateCurrentPaneHighlights();
+  void ClearSearchHighlights();
+  void UpdateSearchResultControls();
+  void NavigateSearchResults(int direction);
+
   void UpdateNavigationListStyle();
+  void UpdateSearchNavigationIcons();
 
   QStackedWidget* m_stacked_panes = nullptr;
   QListWidget* m_navigation_list = nullptr;
+  QLineEdit* m_search_bar = nullptr;
+  QWidget* m_search_navigation_widget = nullptr;
+  QToolButton* m_search_previous_button = nullptr;
+  QToolButton* m_search_next_button = nullptr;
+  QLabel* m_search_results_label = nullptr;
+  std::vector<QString> m_pane_names;
+  std::vector<SearchResult> m_search_results;
+  int m_current_search_result_index = -1;
+  std::vector<QPointer<QWidget>> m_first_match_widgets;
+  std::vector<QPointer<QWidget>> m_highlighted_widgets;
   bool m_handling_theme_change = false;
 };
 
