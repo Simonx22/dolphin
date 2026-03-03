@@ -5,10 +5,14 @@
 
 #include <QDialog>
 
-class QStackedWidget;
-class QListWidget;
-class MainWindow;
+class QCloseEvent;
 class QEvent;
+class QListWidget;
+class QStackedWidget;
+class QWidget;
+
+class MainWindow;
+class SettingsSearchWidget;
 
 // A settings window with a QListWidget to switch between panes of a QStackedWidget.
 class StackedSettingsWindow : public QDialog
@@ -29,12 +33,15 @@ protected:
   void OnDoneCreatingPanes();
 
   void changeEvent(QEvent* event) override;
+  void closeEvent(QCloseEvent* event) override;
+  void done(int result) override;
 
 private:
   void UpdateNavigationListStyle();
 
   QStackedWidget* m_stacked_panes = nullptr;
   QListWidget* m_navigation_list = nullptr;
+  SettingsSearchWidget* m_settings_search = nullptr;
   bool m_handling_theme_change = false;
 };
 

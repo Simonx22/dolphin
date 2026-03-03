@@ -5,19 +5,25 @@
 
 #include <utility>
 
+#include <QAbstractScrollArea>
 #include <QApplication>
+#include <QCloseEvent>
 #include <QColor>
 #include <QDialogButtonBox>
 #include <QEvent>
+#include <QFrame>
+#include <QGridLayout>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QListWidget>
 #include <QPalette>
 #include <QStackedWidget>
-#include <QTabWidget>
+#include <QStyle>
 #include <QVBoxLayout>
 
 #include "DolphinQt/Config/ControllersPane.h"
 #include "DolphinQt/Config/Graphics/GraphicsPane.h"
+#include "DolphinQt/Config/SettingsSearchWidget.h"
 #include "DolphinQt/MainWindow.h"
 #include "DolphinQt/QtUtils/QtUtils.h"
 #include "DolphinQt/QtUtils/WrapInScrollArea.h"
@@ -37,14 +43,13 @@ StackedSettingsWindow::StackedSettingsWindow(QWidget* parent) : QDialog{parent}
   // This eliminates the ugly line between the title bar and window contents with KDE Plasma.
   setStyleSheet(QStringLiteral("QDialog { border: none; }"));
 
-  auto* const layout = new QHBoxLayout{this};
-
-  // Calculated value for the padding in our list items.
-  const int list_item_padding = layout->contentsMargins().left() / 2;
-
+  auto* const layout = new QVBoxLayout{this};
   // Eliminate padding around layouts.
   layout->setContentsMargins(QMargins{});
   layout->setSpacing(0);
+
+  // Calculated value for the padding in our list items.
+  const int list_item_padding = style()->pixelMetric(QStyle::PM_LayoutLeftMargin) / 2;
 
   m_navigation_list = new QListWidget;
 
@@ -79,14 +84,27 @@ StackedSettingsWindow::StackedSettingsWindow(QWidget* parent) : QDialog{parent}
 
   UpdateNavigationListStyle();
 
-  layout->addWidget(m_navigation_list);
+  auto* const content_layout = new QHBoxLayout;
+  content_layout->setContentsMargins(QMargins{});
+  content_layout->setSpacing(0);
+
+  content_layout->addWidget(m_navigation_list);
 
   auto* const right_side = new QVBoxLayout;
-  layout->addLayout(right_side);
+  right_side->setContentsMargins(14, 0, 14, 0);
+  right_side->setSpacing(10);
+  content_layout->addLayout(right_side);
 
   m_stacked_panes = new QStackedWidget;
+  auto* const content_stack = new QStackedWidget;
+  content_stack->addWidget(m_stacked_panes);
 
-  right_side->addWidget(m_stacked_panes);
+  auto* const no_results_label = new QLabel(tr("No settings found"));
+  no_results_label->setAlignment(Qt::AlignCenter);
+  no_results_label->setEnabled(false);
+  content_stack->addWidget(no_results_label);
+
+  right_side->addWidget(content_stack);
 
   // The QFrame gives us some padding around the button.
   auto* const button_frame = new QFrame;
@@ -96,9 +114,13 @@ StackedSettingsWindow::StackedSettingsWindow(QWidget* parent) : QDialog{parent}
   button_layout->addWidget(button_box);
 
   connect(button_box, &QDialogButtonBox::rejected, this, &QDialog::reject);
-
   connect(m_navigation_list, &QListWidget::currentRowChanged, m_stacked_panes,
           &QStackedWidget::setCurrentIndex);
+
+  m_settings_search =
+      new SettingsSearchWidget{m_navigation_list, m_stacked_panes, content_stack, this};
+  layout->addWidget(m_settings_search);
+  layout->addLayout(content_layout);
 }
 
 void StackedSettingsWindow::OnDoneCreatingPanes()
@@ -134,6 +156,18 @@ void StackedSettingsWindow::changeEvent(QEvent* event)
 
   if (palette_changed || application_palette_changed || style_changed || theme_event)
     UpdateNavigationListStyle();
+}
+
+void StackedSettingsWindow::closeEvent(QCloseEvent* event)
+{
+  m_settings_search->Reset();
+  QDialog::closeEvent(event);
+}
+
+void StackedSettingsWindow::done(int result)
+{
+  m_settings_search->Reset();
+  QDialog::done(result);
 }
 
 void StackedSettingsWindow::UpdateNavigationListStyle()
@@ -174,6 +208,7 @@ void StackedSettingsWindow::AddPane(QWidget* widget, const QString& name)
   m_stacked_panes->addWidget(widget);
   // Pad the left and right of each item.
   m_navigation_list->addItem(QStringLiteral("  %1  ").arg(name));
+  m_settings_search->AddPane(name);
 }
 
 void StackedSettingsWindow::AddWrappedPane(QWidget* widget, const QString& name)
@@ -211,7 +246,8 @@ void SettingsWindow::SelectPane(SettingsWindowPaneIndex index)
   ActivatePane(std::to_underlying(index));
 }
 
-void SettingsWindow::closeEvent(QCloseEvent*)
+void SettingsWindow::closeEvent(QCloseEvent* event)
 {
   Config::Save();
+  StackedSettingsWindow::closeEvent(event);
 }
