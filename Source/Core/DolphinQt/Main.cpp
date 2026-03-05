@@ -34,6 +34,7 @@
 #include "DolphinQt/Host.h"
 #include "DolphinQt/MainWindow.h"
 #include "DolphinQt/QtUtils/AnalyticsPrompt.h"
+#include "DolphinQt/QtUtils/MacOSInstallPrompt.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/QtUtils/RunOnObject.h"
 #ifdef _WIN32
@@ -255,42 +256,52 @@ int main(int argc, char* argv[])
   }
   else
   {
-    DolphinAnalytics::Instance().ReportDolphinStart("qt");
+#ifdef __APPLE__
+    if (!game_specified && !Settings::Instance().IsBatchModeEnabled() &&
+        !QtUtils::MaybeInstallFromDiskImage())
+    {
+      retval = 0;
+    }
+    else
+#endif
+    {
+      DolphinAnalytics::Instance().ReportDolphinStart("qt");
 
-    Settings::Instance().InitDefaultPalette();
-    Settings::Instance().ApplyStyle();
+      Settings::Instance().InitDefaultPalette();
+      Settings::Instance().ApplyStyle();
 
-    MainWindow win{Core::System::GetInstance(), std::move(boot),
-                   static_cast<const char*>(options.get("movie"))};
+      MainWindow win{Core::System::GetInstance(), std::move(boot),
+                     static_cast<const char*>(options.get("movie"))};
 
 #if defined(USE_ANALYTICS) && USE_ANALYTICS
-    if (!Config::Get(Config::MAIN_ANALYTICS_PERMISSION_ASKED))
-    {
-      // To ensure that the analytics prompt appears aligned with the center of the main window,
-      // the dialog is only shown after the application is ready, as only then it is guaranteed that
-      // the main window has been placed in its final position.
-      auto* const connection_context = new QObject(&win);
-      QObject::connect(qApp, &QGuiApplication::applicationStateChanged, connection_context,
-                       [connection_context, &win](const Qt::ApplicationState state) {
-                         if (state != Qt::ApplicationState::ApplicationActive)
-                           return;
+      if (!Config::Get(Config::MAIN_ANALYTICS_PERMISSION_ASKED))
+      {
+        // To ensure that the analytics prompt appears aligned with the center of the main window,
+        // the dialog is only shown after the application is ready, as only then it is guaranteed
+        // that the main window has been placed in its final position.
+        auto* const connection_context = new QObject(&win);
+        QObject::connect(qApp, &QGuiApplication::applicationStateChanged, connection_context,
+                         [connection_context, &win](const Qt::ApplicationState state) {
+                           if (state != Qt::ApplicationState::ApplicationActive)
+                             return;
 
-                         // Severe the connection after the first run.
-                         delete connection_context;
+                           // Severe the connection after the first run.
+                           delete connection_context;
 
-                         ShowAnalyticsPrompt(&win);
-                       });
-    }
+                           ShowAnalyticsPrompt(&win);
+                         });
+      }
 #endif
 
-    if (!Settings::Instance().IsBatchModeEnabled())
-    {
-      auto* updater = new Updater(&win, Config::Get(Config::MAIN_AUTOUPDATE_UPDATE_TRACK),
-                                  Config::Get(Config::MAIN_AUTOUPDATE_HASH_OVERRIDE));
-      updater->start();
-    }
+      if (!Settings::Instance().IsBatchModeEnabled())
+      {
+        auto* updater = new Updater(&win, Config::Get(Config::MAIN_AUTOUPDATE_UPDATE_TRACK),
+                                    Config::Get(Config::MAIN_AUTOUPDATE_HASH_OVERRIDE));
+        updater->start();
+      }
 
-    retval = app.exec();
+      retval = app.exec();
+    }
   }
 
   Core::Shutdown(Core::System::GetInstance());
