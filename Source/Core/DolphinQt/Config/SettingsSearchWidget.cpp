@@ -4,6 +4,7 @@
 #include "DolphinQt/Config/SettingsSearchWidget.h"
 
 #include <algorithm>
+#include <utility>
 
 #include <QComboBox>
 #include <QEvent>
@@ -11,17 +12,16 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QItemSelectionModel>
 #include <QKeyEvent>
 #include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
-#include <QList>
 #include <QListWidget>
 #include <QScrollArea>
 #include <QShortcut>
 #include <QSize>
 #include <QStackedWidget>
-#include <QStringList>
 #include <QStyle>
 #include <QTabWidget>
 #include <QToolButton>
@@ -29,75 +29,8 @@
 
 namespace
 {
-constexpr auto ORIGINAL_TAB_TEXTS_PROPERTY = "settingsSearchOriginalTabTexts";
-
-QString GetOriginalTabText(const QTabWidget* tab_widget, int index)
-{
-  const QStringList original_texts =
-      tab_widget->property(ORIGINAL_TAB_TEXTS_PROPERTY).toStringList();
-  if (index >= 0 && index < original_texts.size())
-    return original_texts[index];
-
-  return tab_widget->tabText(index);
-}
-
-void RestoreTabTexts(QWidget* root)
-{
-  QList<QTabWidget*> tab_widgets = root->findChildren<QTabWidget*>();
-  if (auto* const root_tab_widget = qobject_cast<QTabWidget*>(root))
-    tab_widgets.prepend(root_tab_widget);
-
-  for (QTabWidget* const tab_widget : tab_widgets)
-  {
-    QStringList original_texts = tab_widget->property(ORIGINAL_TAB_TEXTS_PROPERTY).toStringList();
-    if (original_texts.size() != tab_widget->count())
-    {
-      original_texts.clear();
-      for (int i = 0; i < tab_widget->count(); ++i)
-        original_texts.push_back(tab_widget->tabText(i));
-      tab_widget->setProperty(ORIGINAL_TAB_TEXTS_PROPERTY, original_texts);
-    }
-
-    for (int i = 0; i < tab_widget->count(); ++i)
-      tab_widget->setTabText(i, original_texts[i]);
-  }
-}
-
-void UpdateTabMatchCounts(QWidget* root, const std::vector<QWidget*>& matches)
-{
-  if (matches.empty())
-    return;
-
-  QList<QTabWidget*> tab_widgets = root->findChildren<QTabWidget*>();
-  if (auto* const root_tab_widget = qobject_cast<QTabWidget*>(root))
-    tab_widgets.prepend(root_tab_widget);
-
-  for (QTabWidget* const tab_widget : tab_widgets)
-  {
-    std::vector<int> match_counts(tab_widget->count());
-    for (QWidget* const match : matches)
-    {
-      for (int i = 0; i < tab_widget->count(); ++i)
-      {
-        QWidget* const page = tab_widget->widget(i);
-        if (match == page || (page && page->isAncestorOf(match)))
-        {
-          ++match_counts[i];
-          break;
-        }
-      }
-    }
-
-    for (int i = 0; i < tab_widget->count(); ++i)
-    {
-      const QString original_text = GetOriginalTabText(tab_widget, i);
-      tab_widget->setTabText(i,
-                             match_counts[i] == 0 ?
-                                 original_text :
-                                 QStringLiteral("%1 (%2)").arg(original_text).arg(match_counts[i]));
-    }
-  }
-}
+constexpr auto SEARCH_MATCH_PROPERTY = "settingsSearchMatch";
+constexpr auto SEARCH_CURRENT_PROPERTY = "settingsSearchCurrent";
 
 bool ObjectMatchesSearchTerm(const QObject* object, const QString& search_term)
 {
@@ -124,7 +57,7 @@ void CollectMatchingWidgets(const QObject* root, const QString& search_term,
   {
     for (int i = 0; i < tab_widget->count(); ++i)
     {
-      if (!GetOriginalTabText(tab_widget, i).contains(search_term, Qt::CaseInsensitive))
+      if (!tab_widget->tabText(i).contains(search_term, Qt::CaseInsensitive))
         continue;
 
       if (QWidget* const page = tab_widget->widget(i);
@@ -169,6 +102,15 @@ void CollectMatchingWidgets(const QObject* root, const QString& search_term,
       matches->push_back(widget);
     }
   }
+}
+
+void SetHighlightState(QWidget* widget, bool matches, bool current)
+{
+  widget->setProperty(SEARCH_MATCH_PROPERTY, matches);
+  widget->setProperty(SEARCH_CURRENT_PROPERTY, current);
+  widget->style()->unpolish(widget);
+  widget->style()->polish(widget);
+  widget->update();
 }
 
 void EnsureWidgetIsVisible(QWidget* widget)
@@ -255,6 +197,13 @@ SettingsSearchWidget::SettingsSearchWidget(QListWidget* navigation_list,
     : QWidget{parent}, m_navigation_list{navigation_list}, m_stacked_panes{stacked_panes},
       m_content_stack{content_stack}
 {
+  CreateWidgets();
+  ConnectWidgets();
+  UpdateSearchResultControls();
+}
+
+void SettingsSearchWidget::CreateWidgets()
+{
   setStyleSheet(GetSearchBarStyleSheet());
   m_stacked_panes->setStyleSheet(GetHighlightStyleSheet());
 
@@ -309,7 +258,10 @@ SettingsSearchWidget::SettingsSearchWidget(QListWidget* navigation_list,
 
   m_search_navigation_widget->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
   layout->addWidget(m_search_navigation_widget, 0, Qt::AlignVCenter);
+}
 
+void SettingsSearchWidget::ConnectWidgets()
+{
   connect(m_search_bar, &QLineEdit::textChanged, this, &SettingsSearchWidget::ApplySearchFilter);
   connect(m_navigation_list, &QListWidget::currentRowChanged, this,
           &SettingsSearchWidget::UpdateCurrentPaneHighlights);
@@ -323,7 +275,6 @@ SettingsSearchWidget::SettingsSearchWidget(QListWidget* navigation_list,
     m_search_bar->setFocus();
     m_search_bar->selectAll();
   });
-  UpdateSearchResultControls();
 }
 
 void SettingsSearchWidget::AddPane(const QString& name)
@@ -362,61 +313,21 @@ bool SettingsSearchWidget::eventFilter(QObject* watched, QEvent* event)
 void SettingsSearchWidget::ApplySearchFilter()
 {
   const QString search_term = m_search_bar->text().trimmed();
+  SearchResults results = FindSearchResults(search_term);
 
-  m_search_results.clear();
+  m_search_results = std::move(results.items);
   m_current_search_result_index = -1;
-
-  int first_visible_row = -1;
-
-  for (int i = 0; i < m_navigation_list->count(); ++i)
-  {
-    int match_count = 0;
-    std::vector<QWidget*> pane_matches;
-    QWidget* const pane = m_stacked_panes->widget(i);
-    if (pane)
-      RestoreTabTexts(pane);
-
-    const bool pane_name_matches = i < static_cast<int>(m_pane_names.size()) &&
-                                   m_pane_names[i].contains(search_term, Qt::CaseInsensitive);
-
-    if (!search_term.isEmpty() && pane)
-    {
-      CollectMatchingWidgets(pane, search_term, &pane_matches);
-      match_count = static_cast<int>(pane_matches.size());
-      UpdateTabMatchCounts(pane, pane_matches);
-
-      for (QWidget* const widget : pane_matches)
-        m_search_results.emplace_back(SearchResult{i, QPointer<QWidget>(widget)});
-
-      if (pane_name_matches && pane_matches.empty())
-        m_search_results.emplace_back(SearchResult{i, QPointer<QWidget>(pane)});
-    }
-
-    const bool matches = search_term.isEmpty() || pane_name_matches || match_count > 0;
-
-    QListWidgetItem* const item = m_navigation_list->item(i);
-    item->setHidden(!matches);
-    const QString pane_name =
-        i < static_cast<int>(m_pane_names.size()) ? m_pane_names[i] : QString{};
-    if (search_term.isEmpty() || match_count == 0)
-      item->setText(QStringLiteral("  %1  ").arg(pane_name));
-    else
-      item->setText(QStringLiteral("  %1 (%2)  ").arg(pane_name).arg(match_count));
-
-    if (matches && first_visible_row == -1)
-      first_visible_row = i;
-  }
-
   if (!search_term.isEmpty() && !m_search_results.empty())
     m_current_search_result_index = 0;
 
   ClearSearchHighlights();
-  UpdateSearchResultControls();
+  const int first_visible_row = ApplyNavigationFilter(search_term, results);
 
   if (first_visible_row == -1)
   {
     m_content_stack->setCurrentIndex(1);
     m_navigation_list->clearSelection();
+    UpdateSearchResultControls();
     return;
   }
 
@@ -439,10 +350,69 @@ void SettingsSearchWidget::ApplySearchFilter()
       target_row = current_row;
   }
 
-  if (target_row != current_row)
-    m_navigation_list->setCurrentRow(target_row);
+  m_navigation_list->setCurrentRow(target_row, QItemSelectionModel::ClearAndSelect);
 
   UpdateCurrentPaneHighlights();
+}
+
+SettingsSearchWidget::SearchResults
+SettingsSearchWidget::FindSearchResults(const QString& search_term) const
+{
+  const int pane_count = m_navigation_list->count();
+  SearchResults results;
+  results.panes.resize(pane_count);
+
+  if (search_term.isEmpty())
+    return results;
+
+  for (int i = 0; i < pane_count; ++i)
+  {
+    const bool pane_name_matches = i < static_cast<int>(m_pane_names.size()) &&
+                                   m_pane_names[i].contains(search_term, Qt::CaseInsensitive);
+    results.panes[i].name_matches = pane_name_matches;
+
+    QWidget* const pane = m_stacked_panes->widget(i);
+    if (!pane)
+      continue;
+
+    std::vector<QWidget*> pane_matches;
+    CollectMatchingWidgets(pane, search_term, &pane_matches);
+    results.panes[i].match_count = static_cast<int>(pane_matches.size());
+
+    for (QWidget* const widget : pane_matches)
+      results.items.push_back({i, widget, true});
+
+    if (pane_name_matches && pane_matches.empty())
+      results.items.push_back({i, pane, false});
+  }
+
+  return results;
+}
+
+int SettingsSearchWidget::ApplyNavigationFilter(const QString& search_term,
+                                                const SearchResults& results)
+{
+  int first_visible_row = -1;
+  for (int i = 0; i < m_navigation_list->count(); ++i)
+  {
+    const PaneSearchResult& pane_result = results.panes[i];
+    const bool matches =
+        search_term.isEmpty() || pane_result.name_matches || pane_result.match_count > 0;
+
+    QListWidgetItem* const item = m_navigation_list->item(i);
+    item->setHidden(!matches);
+
+    const QString pane_name =
+        i < static_cast<int>(m_pane_names.size()) ? m_pane_names[i] : QString{};
+    item->setText(search_term.isEmpty() || pane_result.match_count == 0 ?
+                      QStringLiteral("  %1  ").arg(pane_name) :
+                      QStringLiteral("  %1 (%2)  ").arg(pane_name).arg(pane_result.match_count));
+
+    if (matches && first_visible_row == -1)
+      first_visible_row = i;
+  }
+
+  return first_visible_row;
 }
 
 void SettingsSearchWidget::ClearSearchHighlights()
@@ -452,11 +422,7 @@ void SettingsSearchWidget::ClearSearchHighlights()
     if (!widget)
       continue;
 
-    widget->setProperty("settingsSearchMatch", false);
-    widget->setProperty("settingsSearchCurrent", false);
-    widget->style()->unpolish(widget);
-    widget->style()->polish(widget);
-    widget->update();
+    SetHighlightState(widget, false, false);
   }
   m_highlighted_widgets.clear();
 }
@@ -494,34 +460,15 @@ void SettingsSearchWidget::UpdateCurrentPaneHighlights()
   ClearSearchHighlights();
 
   const QString search_term = m_search_bar->text().trimmed();
-  if (search_term.isEmpty())
-  {
-    UpdateSearchResultControls();
-    return;
-  }
-
   const int current_row = m_navigation_list->currentRow();
-  if (current_row < 0 || current_row >= m_stacked_panes->count())
+  const bool can_highlight =
+      !search_term.isEmpty() && current_row >= 0 && current_row < m_stacked_panes->count() &&
+      !m_navigation_list->item(current_row)->isHidden() && m_stacked_panes->widget(current_row);
+  if (!can_highlight)
   {
     UpdateSearchResultControls();
     return;
   }
-
-  if (m_navigation_list->item(current_row)->isHidden())
-  {
-    UpdateSearchResultControls();
-    return;
-  }
-
-  QWidget* const pane = m_stacked_panes->widget(current_row);
-  if (!pane)
-  {
-    UpdateSearchResultControls();
-    return;
-  }
-
-  std::vector<QWidget*> matches;
-  CollectMatchingWidgets(pane, search_term, &matches);
 
   QWidget* current_match = nullptr;
   if (m_current_search_result_index >= 0 &&
@@ -532,29 +479,27 @@ void SettingsSearchWidget::UpdateCurrentPaneHighlights()
       current_match = result.widget;
   }
 
-  if (!current_match && !matches.empty())
+  if (!current_match)
   {
-    current_match = matches.front();
-    const auto current_it =
-        std::find_if(m_search_results.cbegin(), m_search_results.cend(),
-                     [current_row, current_match](const SearchResult& result) {
-                       return result.pane_index == current_row && result.widget == current_match;
-                     });
+    const auto current_it = std::find_if(m_search_results.cbegin(), m_search_results.cend(),
+                                         [current_row](const SearchResult& result) {
+                                           return result.pane_index == current_row && result.widget;
+                                         });
     if (current_it != m_search_results.cend())
     {
+      current_match = current_it->widget;
       m_current_search_result_index =
           static_cast<int>(std::distance(m_search_results.cbegin(), current_it));
     }
   }
 
-  for (QWidget* const widget : matches)
+  for (const SearchResult& result : m_search_results)
   {
-    widget->setProperty("settingsSearchMatch", true);
-    widget->setProperty("settingsSearchCurrent", widget == current_match);
-    widget->style()->unpolish(widget);
-    widget->style()->polish(widget);
-    widget->update();
-    m_highlighted_widgets.emplace_back(widget);
+    if (result.pane_index != current_row || !result.can_highlight || !result.widget)
+      continue;
+
+    SetHighlightState(result.widget, true, result.widget == current_match);
+    m_highlighted_widgets.push_back(result.widget);
   }
 
   EnsureWidgetIsVisible(current_match);

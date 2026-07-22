@@ -31,11 +31,29 @@ private:
   {
     int pane_index;
     QPointer<QWidget> widget;
+    bool can_highlight;
+  };
+
+  struct PaneSearchResult
+  {
+    int match_count = 0;
+    bool name_matches = false;
+  };
+
+  struct SearchResults
+  {
+    std::vector<SearchResult> items;
+    std::vector<PaneSearchResult> panes;
   };
 
   bool eventFilter(QObject* watched, QEvent* event) override;
 
+  void CreateWidgets();
+  void ConnectWidgets();
+
   void ApplySearchFilter();
+  SearchResults FindSearchResults(const QString& search_term) const;
+  int ApplyNavigationFilter(const QString& search_term, const SearchResults& results);
   void ClearSearchHighlights();
   void NavigateSearchResults(int direction);
   void UpdateCurrentPaneHighlights();
